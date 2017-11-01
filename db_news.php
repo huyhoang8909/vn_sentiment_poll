@@ -117,7 +117,7 @@ class db_news {
         return mysqli_query(self::$connection, $sql);
     }
 
-    public function update($news_id, $description) {
+    public function updateTmpSentiment($id, $sentiment, $column_name) {
         $this->connnect();
 
         $description = $this->removeScript($description);
@@ -127,9 +127,14 @@ class db_news {
 
         $description = trim($description);
 
-        $sql = "UPDATE `news` SET `news_description` = '".mysqli_escape_string(self::$connection, html_entity_decode($description))."' WHERE `news`.`news_id` = ".$news_id.";
+        $sql = "UPDATE `tmp` SET `is_done` = 1, `$column_name` =" . $sentiment . " WHERE `id` = '".$id."';
                 ";
 
+        return mysqli_query(self::$connection, $sql);
+    }
+
+    public function update($sql) {
+        $this->connnect();
         mysqli_query(self::$connection, $sql);
     }
 
