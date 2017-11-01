@@ -1,41 +1,51 @@
-<?php include './db_news.php';
+<?php
+include './db_news.php';
+include './helper.php';
+
 $db_news = new db_news();
 
+// get ip of client
+if (!empty($_SERVER['HTTP_CLIENT_IP'])) {
+  $ip = $_SERVER['HTTP_CLIENT_IP'];
+} elseif (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+  $ip = $_SERVER['HTTP_X_FORWARDED_FOR'];
+} else {
+  $ip = $_SERVER['REMOTE_ADDR'];
+}
+
 if(!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
-  // get ip of client
-  if (!empty($_SERVER['HTTP_CLIENT_IP'])) {
-    $ip = $_SERVER['HTTP_CLIENT_IP'];
-  } elseif (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
-    $ip = $_SERVER['HTTP_X_FORWARDED_FOR'];
-  } else {
-    $ip = $_SERVER['REMOTE_ADDR'];
-  }
 
   $user_agent = $_SERVER['HTTP_USER_AGENT'];
   $reviews_id = $_POST['id'];
   $value = '';
-  var_dump($_POST);
+
   // update review's content
   if (isset($_POST['value'])) {
-    echo 'hello';
     $value = $_POST['value'];
+    $reviews_id = $_POST['pk'];
+
     $db_news->update("update tmp set content='$value' where id = $reviews_id limit 1");
     $db_news->update("update reviews set content='$value' where id = $reviews_id limit 1");
   } else {
     $value = $_POST['sentiment'];
-    $db_news->updateTmpSentiment($_POST['id'], $_POST['sentiment'], $_POST['name']);
-    echo $db_news->updateReviewsSentiment($_POST['id'], $_POST['sentiment'], $_POST['name']);
+    $db_news->updateTmpSentiment($reviews_id, $_POST['sentiment'], $_POST['name']);
+    echo $db_news->updateReviewsSentiment($reviews_id, $_POST['sentiment'], $_POST['name']);
   }
   //update log
-  $db_news->update("insert into log(ip,user_agent,reviews_id,`column`,value) values ('$ip', '$user_agent', {$_POST['id']}, '{$_POST['name']}', '$value') ");
+  $db_news->update("insert into log(ip,user_agent,reviews_id,`column`,value,created_at) values ('$ip', '$user_agent', $reviews_id, '{$_POST['name']}', '$value', now()) ");
 
   exit;
 } else {
-
-  $page = $_GET['page'] ?: 1;
+  $page = empty($_GET['page']) ? 1 : $_GET['page'];
+  // save in use pages to db
+  $db_news->update("INSERT INTO status(ip, page,modified_at) VALUES ('$ip', $page, now()) ON DUPLICATE KEY UPDATE page = $page, modified_at = now()");
   $rows = $db_news->query("select * from tmp where `group` = $page order by is_done, rand() limit " . LIMIT);
   $num_complete = $db_news->query("select count(*) as count from tmp where is_done = 1")[0]['count'];
   $metas = $db_news->query("SELECT `group`, SUM(is_done=0) as count FROM tmp group by `group`");
+  $in_use_pages = $db_news->query("SELECT DISTINCT `page` FROM status");
+  $in_use_pages = $in_use_pages ? array_value_recursive($in_use_pages) : [];
+  // remove any ip without refresh page more than 1 hours
+  $db_news->update("DELETE FROM status WHERE modified_at < DATE_SUB(NOW(), INTERVAL 1 HOUR)");
 }
 ?>
 
@@ -65,13 +75,33 @@ if(!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQU
     }
   </style>
   <div class="container">
-  <h2>Trạng thái</h2>
+    <div class="panel panel-default">
+      <div class="panel-heading">
+        <h3 class="panel-title">Hướng dẫn</h3>
+      </div>
+      <div class="panel-body">
+        Cảm xúc của câu: là cảm xúc toàn bộ câu
+        Cảm xúc của khía cạnh thiết kế: là cảm xúc của khía cạnh thiết kế được đề cập trong câu. Ví dụ: thiết kế này đẹp, mẫu mà này ổn, tai nghe không ôm...
+        Cảm xúc của khía cạnh giá: là cảm xúc của khía cạnh giá được đề cập trong câu
+        Giá trị cảm xúc là:
+          0: rất tiêu cực (very negative)
+          1: tiêu cực (negative)
+          2: bình thường (neutral)
+          3: tích cực (positive)
+          4: rất tích cực (very positive)
+        Tổng cộng có: 3550 chia thành 36 trang. Mỗi trang có 100 câu
+        Có thể chỉnh sửa lại nội dung của câu bằng cách click vào câu đó.
+        Lưu ý: khi cập nhật giá trị cảm xúc thành công phải có dấu check màu xanh
+      </div>
+    </div>
 
   <h2>Phrases Table</h2>
   <ul class="pagination">
     <?php foreach ($metas as $meta) : ?>
     <li><a href="?page=<?php echo $meta['group'] ?>"><?php echo $meta['group'] ?>
-      <small><span class="badge"><?php echo $meta['count']?></span></small>
+      <small><span class="badge" <?php if (in_array($meta['group'], $in_use_pages)) print 'style="color: greenyellow;"' ?> >
+        <?php echo $meta['count']?>
+      </span></small>
     </a> </li>
     <?php endforeach; ?>
   </ul>
@@ -90,7 +120,7 @@ if(!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQU
     <?php foreach($rows as $key => $row) :?>
       <tr style="<?php if ($row['is_done']) print 'background-color: beige;'?>" >
         <td class="col-md-6">
-          <a style="border-bottom: none;" href="#" class="editable" id="content" data-type="textarea" data-id="<?php echo $row['id'] ?>" data-url="/vn_sentiment_poll/index.php" ><strong><?php echo $row['content'] ?></strong></a>
+          <a style="border-bottom: none;" href="#" class="editable" id="content" data-type="textarea" data-pk="<?php echo $row['id'] ?>" data-url="/vn_sentiment_poll/index.php" ><strong><?php echo $row['content'] ?></strong></a>
         </td>
         <td class="col-md-2">
           <label>0&nbsp;</label><input type="radio" value="0" name="sentiment-<?php echo $key ?>">
@@ -150,7 +180,7 @@ if(!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQU
     });
     $('.editable').editable({
       success: function(response, newValue) {
-        console.log(response);
+        // console.log(response);
       }
     });
   });

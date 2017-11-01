@@ -111,7 +111,7 @@ class db_news {
 
         $description = trim($description);
 
-        $sql = "UPDATE `reviews` SET `$column_name` =" . $sentiment . " WHERE `id` = '".$id."';
+        $sql = "UPDATE `reviews` SET is_verified = 1, `$column_name` =" . $sentiment . " WHERE `id` = '".$id."';
                 ";
 
         return mysqli_query(self::$connection, $sql);
