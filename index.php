@@ -33,10 +33,12 @@ if(!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQU
   }
   //update log
   $db_news->update("insert into log(ip,user_agent,reviews_id,`column`,value,created_at) values ('$ip', '$user_agent', $reviews_id, '{$_POST['name']}', '$value', now()) ");
-
+  $db_news->update("UPDATE status set modified_at = now() WHERE ip ='$ip' limit 1");
   exit;
 } else {
   $page = empty($_GET['page']) ? 1 : $_GET['page'];
+  // remove any ip without refresh page more than 1 hours
+  $db_news->update("DELETE FROM status WHERE modified_at < DATE_SUB(NOW(), INTERVAL 10 MINUTE)");
   // save in use pages to db
   $db_news->update("INSERT INTO status(ip, page,modified_at) VALUES ('$ip', $page, now()) ON DUPLICATE KEY UPDATE page = $page, modified_at = now()");
   $rows = $db_news->query("select * from tmp where `group` = $page order by is_done, rand() limit " . LIMIT);
@@ -44,8 +46,6 @@ if(!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQU
   $metas = $db_news->query("SELECT `group`, SUM(is_done=0) as count FROM tmp group by `group`");
   $in_use_pages = $db_news->query("SELECT DISTINCT `page` FROM status");
   $in_use_pages = $in_use_pages ? array_value_recursive($in_use_pages) : [];
-  // remove any ip without refresh page more than 1 hours
-  $db_news->update("DELETE FROM status WHERE modified_at < DATE_SUB(NOW(), INTERVAL 1 HOUR)");
 }
 ?>
 
@@ -80,22 +80,37 @@ if(!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQU
         <h3 class="panel-title">Hướng dẫn</h3>
       </div>
       <div class="panel-body">
-        Cảm xúc của câu: là cảm xúc toàn bộ câu
-        Cảm xúc của khía cạnh thiết kế: là cảm xúc của khía cạnh thiết kế được đề cập trong câu. Ví dụ: thiết kế này đẹp, mẫu mà này ổn, tai nghe không ôm...
-        Cảm xúc của khía cạnh giá: là cảm xúc của khía cạnh giá được đề cập trong câu
-        Giá trị cảm xúc là:
-          0: rất tiêu cực (very negative)
-          1: tiêu cực (negative)
-          2: bình thường (neutral)
-          3: tích cực (positive)
-          4: rất tích cực (very positive)
-        Tổng cộng có: 3550 chia thành 36 trang. Mỗi trang có 100 câu
-        Có thể chỉnh sửa lại nội dung của câu bằng cách click vào câu đó.
-        Lưu ý: khi cập nhật giá trị cảm xúc thành công phải có dấu check màu xanh
+        <ul>
+        <li>Cảm xúc của câu: là cảm xúc toàn bộ câu</li>
+        <li>Cảm xúc của khía cạnh thiết kế: là cảm xúc của khía cạnh thiết kế được đề cập trong câu. Ví dụ: thiết kế này đẹp, mẫu mà này ổn, tai nghe không ôm...</li>
+        <li>Cảm xúc của khía cạnh giá: là cảm xúc của khía cạnh giá được đề cập trong câu</li>
+        <li>Giá trị cảm xúc là:
+          <ul>
+          <li>0: rất tiêu cực (very negative)</li>
+          <li>1: tiêu cực (negative)</li>
+          <li>2: bình thường (neutral)</li>
+          <li>3: tích cực (positive)</li>
+          <li>4: rất tích cực (very positive)</li>
+          </ul>
+        </li>
+        <li>Tổng cộng có: 4041 câu chia thành 41 trang. Mỗi trang có 100 câu</li>
+        <li>Câu đã xong sẽ được <span style="background-color: beige;" >tô màu</span></li>
+        <li>Có thể chỉnh sửa lại nội dung của câu bằng cách click vào câu đó.</li>
+        <li> Chú thích thêm về trang </li>
+        <ul>
+          <li>
+            <small><span class="badge">99</span></small> <i>Hiện tại trang này còn 99 câu chưa được nhận xét xong và không có ai xem trang này</i>
+          </li>
+          <li>
+            <small><span class="badge" style="color: greenyellow;">99</span></small> <i>Hiện tại trang này còn 99 câu chưa được nhận xét xong và ai đó đang xem trang này</i>
+          </li>
+        </ul>
+        <li><strong>Lưu ý: Câu nào không có giá trị cảm xúc của khía cạnh (thiết kế, giá) thì không cần chọn và khi cập nhật giá trị cảm xúc thành công phải có dấu check màu xanh</strong> <img class="img-thumbnail" width=20 src="http://www.clker.com/cliparts/6/d/6/3/l/M/check-mark-md.png"></li>
+        </ul>
       </div>
     </div>
 
-  <h2>Phrases Table</h2>
+  <h2>Reviews</h2>
   <ul class="pagination">
     <?php foreach ($metas as $meta) : ?>
     <li><a href="?page=<?php echo $meta['group'] ?>"><?php echo $meta['group'] ?>

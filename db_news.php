@@ -75,12 +75,12 @@ class db_news {
 
         $this->connnect();
 
-        $sql = 'INSERT INTO reviews (`product_id`, `category`, `link`,`rating`, `content`) VALUES('
+        $sql = 'INSERT INTO reviews (`product_id`, `category`, `link`,`sentiment`, `content`, length) VALUES('
                     . '' . $params[0] . ','
                     . '"' . $params[1] . '",'
                     . '"' . $params[2] . '",'
                     . '' . $params[3] . ','
-                    . '"' . trim($params[4]) . '")';
+                    . '"' . trim($params[4]) . '",' . $params[5] . ')';
 
         mysqli_query(self::$connection, $sql);
     }
