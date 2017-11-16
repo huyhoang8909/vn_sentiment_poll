@@ -13,6 +13,8 @@ if (!empty($_SERVER['HTTP_CLIENT_IP'])) {
   $ip = $_SERVER['REMOTE_ADDR'];
 }
 
+$table_tmp = 'tmp';
+
 if(!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
 
   $user_agent = $_SERVER['HTTP_USER_AGENT'];
@@ -24,11 +26,11 @@ if(!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQU
     $value = $_POST['value'];
     $reviews_id = $_POST['pk'];
 
-    $db_news->update("update tmp set content='$value' where id = $reviews_id limit 1");
+    $db_news->update("update $table_tmp set content='$value' where id = $reviews_id limit 1");
     $db_news->update("update reviews set content='$value' where id = $reviews_id limit 1");
   } else {
     $value = $_POST['sentiment'];
-    $db_news->updateTmpSentiment($reviews_id, $_POST['sentiment'], $_POST['name']);
+    $db_news->updateTmpSentiment($reviews_id, $_POST['sentiment'], $_POST['name'], $table_tmp);
     echo $db_news->updateReviewsSentiment($reviews_id, $_POST['sentiment'], $_POST['name']);
   }
   //update log
@@ -41,9 +43,9 @@ if(!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQU
   $db_news->update("DELETE FROM status WHERE modified_at < DATE_SUB(NOW(), INTERVAL 10 MINUTE)");
   // save in use pages to db
   $db_news->update("INSERT INTO status(ip, page,modified_at) VALUES ('$ip', $page, now()) ON DUPLICATE KEY UPDATE page = $page, modified_at = now()");
-  $rows = $db_news->query("select * from tmp where `group` = $page order by is_done, rand() limit " . LIMIT);
-  $num_complete = $db_news->query("select count(*) as count from tmp where is_done = 1")[0]['count'];
-  $metas = $db_news->query("SELECT `group`, SUM(is_done=0) as count FROM tmp group by `group`");
+  $rows = $db_news->query("select * from $table_tmp where `group` = $page order by is_done, rand() limit " . LIMIT);
+  $num_complete = $db_news->query("select count(*) as count from $table_tmp where is_done = 1")[0]['count'];
+  $metas = $db_news->query("SELECT `group`, SUM(is_done=0) as count FROM $table_tmp group by `group`");
   $in_use_pages = $db_news->query("SELECT DISTINCT `page` FROM status");
   $in_use_pages = $in_use_pages ? array_value_recursive($in_use_pages) : [];
 }

@@ -117,7 +117,7 @@ class db_news {
         return mysqli_query(self::$connection, $sql);
     }
 
-    public function updateTmpSentiment($id, $sentiment, $column_name) {
+    public function updateTmpSentiment($id, $sentiment, $column_name, $table='tmp') {
         $this->connnect();
 
         $description = $this->removeScript($description);
@@ -127,7 +127,7 @@ class db_news {
 
         $description = trim($description);
 
-        $sql = "UPDATE `tmp` SET `is_done` = 1, `$column_name` =" . $sentiment . " WHERE `id` = '".$id."';
+        $sql = "UPDATE `$table` SET `is_done` = 1, `$column_name` =" . $sentiment . " WHERE `id` = '".$id."';
                 ";
 
         return mysqli_query(self::$connection, $sql);
